@@ -1,0 +1,90 @@
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: nginx-deployment
+  namespace: default
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: nginx
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+      - image: nginx:latest
+        imagePullPolicy: Always
+        name: nginx
+        ports:
+        - containerPort: 80
+          protocol: TCP
+        volumeMounts:
+          - mountPath: /usr/share/nginx/html
+            name: html-page
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      volumes:
+        - name: html-page
+          configMap:
+            name: "html-page"
+            items:
+              - key: index
+                path: index.html
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: html-page
+data:
+  index: |
+    <!DOCTYPE html>
+    <html>
+    <head>
+    <title>Header of tab!</title>
+    <style>
+    html { color-scheme: light dark; }
+    body { 
+        width: 15em;
+        margin: 0 auto;
+        font-family: Tahoma, Verdana, Arial, sans-serif;
+    }
+    </style>
+    </head>
+
+    <body>
+
+    <h1>Header 1 !</h1>
+
+    <h2>SubHeader 2 !</h2>
+    <p> Paragraf text 1</p>
+
+    <h2>SubHeader 2 !</h2>
+    <p> Paragraf text 2</p>
+
+    </body>
+    </html>
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nginx-service
+  namespace: default
+spec:
+  ports:
+  - nodePort: 32000
+    port: 80
+    protocol: TCP
+    targetPort: 80
+  selector:
+    app: nginx
+  type: NodePort
