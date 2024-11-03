@@ -1,16 +1,17 @@
 kind: Deployment
 apiVersion: apps/v1
 metadata:
-  name: nginx-deployment
-  namespace: default
+  name: nginx-site
+  labels:
+    app: nginx
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: nginx
   strategy:
     rollingUpdate:
-      maxSurge: 25%
+      maxSurge: 100%
       maxUnavailable: 25%
     type: RollingUpdate
   template:
@@ -18,6 +19,13 @@ spec:
       labels:
         app: nginx
     spec:
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector: {}
+          matchLabelKeys:
+            - pod-template-hash
       containers:
       - image: nginx:latest
         imagePullPolicy: Always
@@ -27,6 +35,7 @@ spec:
           protocol: TCP
         volumeMounts:
           - mountPath: /usr/share/nginx/html
+            readOnly: true
             name: html-page
       dnsPolicy: ClusterFirst
       restartPolicy: Always
@@ -34,6 +43,7 @@ spec:
       volumes:
         - name: html-page
           configMap:
+            # defaultMode: 420
             name: "html-page"
             items:
               - key: index
@@ -43,6 +53,8 @@ kind: ConfigMap
 apiVersion: v1
 metadata:
   name: html-page
+  labels:
+    app: nginx
 data:
   index: |
     <!DOCTYPE html>
@@ -71,14 +83,13 @@ data:
 
     </body>
     </html>
-
-
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: nginx-service
-  namespace: default
+  labels:
+    app: nginx
 spec:
   ports:
   - nodePort: 32000
@@ -88,3 +99,16 @@ spec:
   selector:
     app: nginx
   type: NodePort
+---
+kind: PodDisruptionBudget
+apiVersion: policy/v1
+metadata:
+  name: "nginx-pdb"
+  labels:
+    app: nginx
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: nginx
+  
