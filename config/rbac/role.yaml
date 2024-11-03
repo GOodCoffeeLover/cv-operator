@@ -1,0 +1,32 @@
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: manager-role
+rules:
+- apiGroups:
+  - cv.good-coffee-lover.io
+  resources:
+  - staticpages
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - cv.good-coffee-lover.io
+  resources:
+  - staticpages/finalizers
+  verbs:
+  - update
+- apiGroups:
+  - cv.good-coffee-lover.io
+  resources:
+  - staticpages/status
+  verbs:
+  - get
+  - patch
+  - update
