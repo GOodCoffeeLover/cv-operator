@@ -11,6 +11,8 @@ spec:
     kind: StaticSite
     listKind: StaticSiteList
     plural: staticsites
+    shortNames:
+    - ss
     singular: staticsite
   scope: Namespaced
   versions:

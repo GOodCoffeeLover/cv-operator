@@ -40,6 +40,7 @@ type StaticSiteStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName=ss
 
 // StaticSite is the Schema for the staticsites API.
 type StaticSite struct {
@@ -51,6 +52,7 @@ type StaticSite struct {
 }
 
 // +kubebuilder:object:root=true
+// +kubebuilder:resource:shortName=sss
 
 // StaticSiteList contains a list of StaticSite.
 type StaticSiteList struct {

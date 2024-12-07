@@ -26,7 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/pointer"
+	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -57,8 +57,8 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	ctx = ctrl.LoggerInto(ctx, log.FromContext(ctx, "name", req.Name, "namespace", req.Namespace))
 
 	log.FromContext(ctx).Info("got new object for reconcile")
-	sp := &cvv1alpha1.StaticSite{}
-	if err := r.Get(ctx, req.NamespacedName, sp); err != nil {
+	ss := &cvv1alpha1.StaticSite{}
+	if err := r.Get(ctx, req.NamespacedName, ss); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
 			// For additional cleanup logic use finalizers.
@@ -68,61 +68,68 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		// Error reading the object - requeue the request.
 		return ctrl.Result{}, err
 	}
-	labels := map[string]string{"app": req.Name}
-	err := r.Create(ctx, &v1.Service{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-			Labels:    labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Kind:       sp.Kind,
-					APIVersion: sp.APIVersion,
-					Name:       sp.Name,
-					UID:        sp.UID,
-				},
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Selector: labels,
-			Type:     v1.ServiceTypeNodePort,
-			Ports: []v1.ServicePort{
-				{
-					Port:       80,
-					TargetPort: intstr.IntOrString{IntVal: 80},
-					NodePort:   32000,
-					Protocol:   v1.ProtocolTCP,
-				},
-			},
-		},
-	})
-	if client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("create service: %w", err)
-	}
-	log.FromContext(ctx).Info("service created")
 
-	err = r.Create(ctx, &appsv1.Deployment{
+	err := r.ensureResources(ctx, ss)
+	if err != nil {
+		return ctrl.Result{}, err
+	}
+
+	return ctrl.Result{}, nil
+}
+
+func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
+	resorces := []client.Object{
+		r.siteConfigMap(ctx, ss),
+		r.siteDeployment(ctx, ss),
+		r.siteService(ctx, ss),
+	}
+	for _, res := range resorces {
+		gvk, unversioned, err := r.Scheme.ObjectKinds(res)
+		if err != nil {
+			return err
+		}
+		if unversioned || len(gvk) == 0 {
+			return fmt.Errorf("failed to get versions of %s/%s", res.GetNamespace(), res.GetName())
+		}
+		res.GetObjectKind().SetGroupVersionKind(gvk[0])
+
+		l := log.FromContext(ctx, "object.kind", res.GetObjectKind(), "object.name", res.GetName())
+		l.Info("creating resource")
+		err = ctrl.SetControllerReference(ss, res, r.Scheme)
+		if err != nil {
+			return fmt.Errorf("set controller reference: %w", err)
+		}
+
+		// obj := res.DeepCopyObject().(client.Object)
+		// ctrl.CreateOrUpdate(ctx, r.Client, obj, func() error {
+		//	return r.Patch(
+		err = r.Patch(
+			ctx, res, client.Apply,
+			client.ForceOwnership, client.FieldOwner("static-site-controller"),
+		)
+		//})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha1.StaticSite) *appsv1.Deployment {
+	return &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-			Labels:    labels,
-			OwnerReferences: []metav1.OwnerReference{
-				{
-					Kind:       sp.Kind,
-					APIVersion: sp.APIVersion,
-					Name:       sp.Name,
-					UID:        sp.UID,
-				},
-			},
+			Name:      ss.Name + "-dpl",
+			Namespace: ss.Namespace,
+			Labels:    r.siteLabels(ctx, ss),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: pointer.Int32(3),
+			Replicas: ptr.To[int32](3),
 			Selector: &metav1.LabelSelector{
-				MatchLabels: labels,
+				MatchLabels: r.siteLabels(ctx, ss),
 			},
 			Template: v1.PodTemplateSpec{
 				ObjectMeta: metav1.ObjectMeta{
-					Labels: labels,
+					Labels: r.siteLabels(ctx, ss),
 				},
 				Spec: v1.PodSpec{
 					Containers: []v1.Container{
@@ -152,7 +159,7 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 							VolumeSource: v1.VolumeSource{
 								ConfigMap: &v1.ConfigMapVolumeSource{
 									LocalObjectReference: v1.LocalObjectReference{
-										Name: req.Name,
+										Name: r.siteConfigMap(ctx, ss).Name,
 									},
 									Items: []v1.KeyToPath{
 										{
@@ -167,36 +174,56 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 				},
 			},
 		},
-	})
-	if client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("create deployment: %w", err)
 	}
-	log.FromContext(ctx).Info("deployment created", "name", req.Name)
+}
 
-	err = r.Create(ctx, &v1.ConfigMap{
+func (r *StaticSiteReconciler) siteConfigMap(ctx context.Context, ss *cvv1alpha1.StaticSite) *v1.ConfigMap {
+	cm := &v1.ConfigMap{
 		ObjectMeta: metav1.ObjectMeta{
-			Name:      req.Name,
-			Namespace: req.Namespace,
-			Labels:    labels,
-			OwnerReferences: []metav1.OwnerReference{
+			Name:      ss.Name + "-cm",
+			Namespace: ss.Namespace,
+			Labels:    r.siteLabels(ctx, ss),
+		},
+		Data: map[string]string{
+			"index": ss.Spec.Content,
+		},
+	}
+	return cm
+}
+
+func (r *StaticSiteReconciler) siteService(ctx context.Context, ss *cvv1alpha1.StaticSite) *v1.Service {
+	return &v1.Service{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      ss.Name + "-svc",
+			Namespace: ss.Namespace,
+			Labels:    r.siteLabels(ctx, ss),
+		},
+		Spec: v1.ServiceSpec{
+			Selector: r.siteLabels(ctx, ss),
+			Type:     v1.ServiceTypeNodePort,
+			Ports: []v1.ServicePort{
 				{
-					Kind:       sp.Kind,
-					APIVersion: sp.APIVersion,
-					Name:       sp.Name,
-					UID:        sp.UID,
+					Port:       80,
+					TargetPort: intstr.IntOrString{IntVal: 80},
+					// FIXME: remove this field
+					NodePort: 32000,
+					Protocol: v1.ProtocolTCP,
 				},
 			},
 		},
-		Data: map[string]string{
-			"index": sp.Spec.Content,
-		},
-	})
-	if client.IgnoreAlreadyExists(err) != nil {
-		return ctrl.Result{}, fmt.Errorf("create configmap: %w", err)
 	}
-	log.FromContext(ctx).Info("configmap created", "name", req.Name)
+}
 
-	return ctrl.Result{}, nil
+func (r *StaticSiteReconciler) siteLabels(ctx context.Context, ss *cvv1alpha1.StaticSite) map[string]string {
+	labels := make(map[string]string, len(ss.Labels))
+	for k, v := range ss.Labels {
+		labels[k] = v
+	}
+
+	if _, exists := labels["site"]; !exists {
+		labels["site"] = ss.Name
+	}
+	return labels
 }
 
 // SetupWithManager sets up the controller with the Manager.
@@ -204,5 +231,8 @@ func (r *StaticSiteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
 		For(&cvv1alpha1.StaticSite{}).
 		Named("staticsite").
+		Owns(&v1.ConfigMap{}).
+		Owns(&v1.Service{}).
+		Owns(&appsv1.Deployment{}).
 		Complete(r)
 }
