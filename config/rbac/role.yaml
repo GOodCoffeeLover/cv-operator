@@ -7,7 +7,7 @@ rules:
 - apiGroups:
   - cv.good-coffee-lover.io
   resources:
-  - staticpages
+  - staticsites
   verbs:
   - create
   - delete
@@ -19,13 +19,13 @@ rules:
 - apiGroups:
   - cv.good-coffee-lover.io
   resources:
-  - staticpages/finalizers
+  - staticsites/finalizers
   verbs:
   - update
 - apiGroups:
   - cv.good-coffee-lover.io
   resources:
-  - staticpages/status
+  - staticsites/status
   verbs:
   - get
   - patch

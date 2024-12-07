@@ -1,23 +1,27 @@
-# permissions for end users to view staticpages.
+# permissions for end users to edit staticsites.
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
     app.kubernetes.io/name: cv-operator
     app.kubernetes.io/managed-by: kustomize
-  name: staticpage-viewer-role
+  name: staticsite-editor-role
 rules:
 - apiGroups:
   - cv.good-coffee-lover.io
   resources:
-  - staticpages
+  - staticsites
   verbs:
+  - create
+  - delete
   - get
   - list
+  - patch
+  - update
   - watch
 - apiGroups:
   - cv.good-coffee-lover.io
   resources:
-  - staticpages/status
+  - staticsites/status
   verbs:
   - get

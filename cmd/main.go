@@ -144,11 +144,11 @@ func main() {
 		os.Exit(1)
 	}
 
-	if err = (&controller.StaticPageReconciler{
+	if err = (&controller.StaticSiteReconciler{
 		Client: mgr.GetClient(),
 		Scheme: mgr.GetScheme(),
 	}).SetupWithManager(mgr); err != nil {
-		setupLog.Error(err, "unable to create controller", "controller", "StaticPage")
+		setupLog.Error(err, "unable to create controller", "controller", "StaticSite")
 		os.Exit(1)
 	}
 	// +kubebuilder:scaffold:builder

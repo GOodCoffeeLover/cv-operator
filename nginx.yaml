@@ -81,6 +81,12 @@ data:
     <h2>SubHeader 2 !</h2>
     <p> Paragraf text 2</p>
 
+    <<h1 id="header">header</h1>
+
+    <p>Sample text.</p>
+
+    <p><a href="/some/path">link</a></p>p><em>Thank you for using nginx.</em></p>
+
     </body>
     </html>
 ---

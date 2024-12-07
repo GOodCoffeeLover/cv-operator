@@ -26,6 +26,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/utils/pointer"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -33,28 +34,30 @@ import (
 	cvv1alpha1 "github.com/GoodCoffeeLover/cv-operator/api/v1alpha1"
 )
 
-// StaticPageReconciler reconciles a StaticPage object
-type StaticPageReconciler struct {
+// StaticSiteReconciler reconciles a StaticSite object
+type StaticSiteReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticpages,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticpages/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticpages/finalizers,verbs=update
+// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/finalizers,verbs=update
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
 // TODO(user): Modify the Reconcile function to compare the state specified by
-// the StaticPage object against the actual cluster state, and then
+// the StaticSite object against the actual cluster state, and then
 // perform operations to make the cluster state reflect the state specified by
 // the user.
 //
 // For more details, check Reconcile and its Result here:
 // - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
-func (r *StaticPageReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log.FromContext(ctx).Info("got new object for reconcile", "name", req.NamespacedName)
-	sp := &cvv1alpha1.StaticPage{}
+func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
+	ctx = ctrl.LoggerInto(ctx, log.FromContext(ctx, "name", req.Name, "namespace", req.Namespace))
+
+	log.FromContext(ctx).Info("got new object for reconcile")
+	sp := &cvv1alpha1.StaticSite{}
 	if err := r.Get(ctx, req.NamespacedName, sp); err != nil {
 		if apierrors.IsNotFound(err) {
 			// Object not found, return.  Created objects are automatically garbage collected.
@@ -96,7 +99,7 @@ func (r *StaticPageReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	if client.IgnoreAlreadyExists(err) != nil {
 		return ctrl.Result{}, fmt.Errorf("create service: %w", err)
 	}
-	log.FromContext(ctx).Info("service created", "name", req.Name)
+	log.FromContext(ctx).Info("service created")
 
 	err = r.Create(ctx, &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
@@ -113,7 +116,7 @@ func (r *StaticPageReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 			},
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: int32Ptr(3),
+			Replicas: pointer.Int32(3),
 			Selector: &metav1.LabelSelector{
 				MatchLabels: labels,
 			},
@@ -197,11 +200,9 @@ func (r *StaticPageReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 }
 
 // SetupWithManager sets up the controller with the Manager.
-func (r *StaticPageReconciler) SetupWithManager(mgr ctrl.Manager) error {
+func (r *StaticSiteReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&cvv1alpha1.StaticPage{}).
-		Named("staticpage").
+		For(&cvv1alpha1.StaticSite{}).
+		Named("staticsite").
 		Complete(r)
 }
-
-func int32Ptr(i int32) *int32 { return &i }

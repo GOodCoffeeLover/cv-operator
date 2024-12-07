@@ -20,19 +20,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
+// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// StaticPageSpec defines the desired state of StaticPage.
-type StaticPageSpec struct {
+// StaticSiteSpec defines the desired state of StaticSite.
+type StaticSiteSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// Content is an content of static page that will be created.
-	Content string `json:"content,omitempty"`
+	// Foo is an example field of StaticSite. Edit staticsite_types.go to remove/update
+	Content string `json:"content"`
 }
 
-// StaticPageStatus defines the observed state of StaticPage.
-type StaticPageStatus struct {
+// StaticSiteStatus defines the observed state of StaticSite.
+type StaticSiteStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 }
@@ -40,24 +41,24 @@ type StaticPageStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 
-// StaticPage is the Schema for the staticpages API.
-type StaticPage struct {
+// StaticSite is the Schema for the staticsites API.
+type StaticSite struct {
 	metav1.TypeMeta   `json:",inline"`
 	metav1.ObjectMeta `json:"metadata,omitempty"`
 
-	Spec   StaticPageSpec   `json:"spec,omitempty"`
-	Status StaticPageStatus `json:"status,omitempty"`
+	Spec   StaticSiteSpec   `json:"spec,omitempty"`
+	Status StaticSiteStatus `json:"status,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 
-// StaticPageList contains a list of StaticPage.
-type StaticPageList struct {
+// StaticSiteList contains a list of StaticSite.
+type StaticSiteList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata,omitempty"`
-	Items           []StaticPage `json:"items"`
+	Items           []StaticSite `json:"items"`
 }
 
 func init() {
-	SchemeBuilder.Register(&StaticPage{}, &StaticPageList{})
+	SchemeBuilder.Register(&StaticSite{}, &StaticSiteList{})
 }

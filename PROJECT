@@ -14,7 +14,7 @@ resources:
   controller: true
   domain: good-coffee-lover.io
   group: cv
-  kind: StaticPage
+  kind: StaticSite
   path: github.com/GoodCoffeeLover/cv-operator/api/v1alpha1
   version: v1alpha1
 version: "3"

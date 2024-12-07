@@ -1,0 +1,9 @@
+apiVersion: cv.good-coffee-lover.io/v1alpha1
+kind: StaticSite
+metadata:
+  labels:
+    app.kubernetes.io/name: cv-operator
+    app.kubernetes.io/managed-by: kustomize
+  name: staticsite-sample
+spec:
+  # TODO(user): Add fields here

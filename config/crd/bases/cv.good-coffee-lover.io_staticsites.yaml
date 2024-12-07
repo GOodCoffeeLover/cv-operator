@@ -4,20 +4,20 @@ kind: CustomResourceDefinition
 metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.16.4
-  name: staticpages.cv.good-coffee-lover.io
+  name: staticsites.cv.good-coffee-lover.io
 spec:
   group: cv.good-coffee-lover.io
   names:
-    kind: StaticPage
-    listKind: StaticPageList
-    plural: staticpages
-    singular: staticpage
+    kind: StaticSite
+    listKind: StaticSiteList
+    plural: staticsites
+    singular: staticsite
   scope: Namespaced
   versions:
   - name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: StaticPage is the Schema for the staticpages API.
+        description: StaticSite is the Schema for the staticsites API.
         properties:
           apiVersion:
             description: |-
@@ -37,14 +37,17 @@ spec:
           metadata:
             type: object
           spec:
-            description: StaticPageSpec defines the desired state of StaticPage.
+            description: StaticSiteSpec defines the desired state of StaticSite.
             properties:
               content:
-                description: Content is an content of static page that will be created.
+                description: Foo is an example field of StaticSite. Edit staticsite_types.go
+                  to remove/update
                 type: string
+            required:
+            - content
             type: object
           status:
-            description: StaticPageStatus defines the observed state of StaticPage.
+            description: StaticSiteStatus defines the observed state of StaticSite.
             type: object
         type: object
     served: true

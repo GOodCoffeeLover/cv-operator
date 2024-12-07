@@ -30,7 +30,7 @@ import (
 	cvv1alpha1 "github.com/GoodCoffeeLover/cv-operator/api/v1alpha1"
 )
 
-var _ = Describe("StaticPage Controller", func() {
+var _ = Describe("StaticSite Controller", func() {
 	Context("When reconciling a resource", func() {
 		const resourceName = "test-resource"
 
@@ -40,13 +40,13 @@ var _ = Describe("StaticPage Controller", func() {
 			Name:      resourceName,
 			Namespace: "default", // TODO(user):Modify as needed
 		}
-		staticpage := &cvv1alpha1.StaticPage{}
+		staticsite := &cvv1alpha1.StaticSite{}
 
 		BeforeEach(func() {
-			By("creating the custom resource for the Kind StaticPage")
-			err := k8sClient.Get(ctx, typeNamespacedName, staticpage)
+			By("creating the custom resource for the Kind StaticSite")
+			err := k8sClient.Get(ctx, typeNamespacedName, staticsite)
 			if err != nil && errors.IsNotFound(err) {
-				resource := &cvv1alpha1.StaticPage{
+				resource := &cvv1alpha1.StaticSite{
 					ObjectMeta: metav1.ObjectMeta{
 						Name:      resourceName,
 						Namespace: "default",
@@ -59,16 +59,16 @@ var _ = Describe("StaticPage Controller", func() {
 
 		AfterEach(func() {
 			// TODO(user): Cleanup logic after each test, like removing the resource instance.
-			resource := &cvv1alpha1.StaticPage{}
+			resource := &cvv1alpha1.StaticSite{}
 			err := k8sClient.Get(ctx, typeNamespacedName, resource)
 			Expect(err).NotTo(HaveOccurred())
 
-			By("Cleanup the specific resource instance StaticPage")
+			By("Cleanup the specific resource instance StaticSite")
 			Expect(k8sClient.Delete(ctx, resource)).To(Succeed())
 		})
 		It("should successfully reconcile the resource", func() {
 			By("Reconciling the created resource")
-			controllerReconciler := &StaticPageReconciler{
+			controllerReconciler := &StaticSiteReconciler{
 				Client: k8sClient,
 				Scheme: k8sClient.Scheme(),
 			}

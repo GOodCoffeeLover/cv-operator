@@ -1,4 +1,4 @@
 ## Append samples of your project ##
 resources:
-- cv_v1alpha1_staticpage.yaml
+- cv_v1alpha1_staticsite.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples
