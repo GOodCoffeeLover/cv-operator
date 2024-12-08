@@ -16,7 +16,12 @@ spec:
     singular: staticsite
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - jsonPath: .spec.replicas
+      name: Replicas
+      priority: -1
+      type: integer
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: StaticSite is the Schema for the staticsites API.
@@ -42,11 +47,17 @@ spec:
             description: StaticSiteSpec defines the desired state of StaticSite.
             properties:
               content:
-                description: Foo is an example field of StaticSite. Edit staticsite_types.go
-                  to remove/update
+                description: Content is content of root page, that will be displayed
                 type: string
+              replicas:
+                description: Replicas -- number of replicas for handing requests
+                format: int32
+                maximum: 100
+                minimum: 0
+                type: integer
             required:
             - content
+            - replicas
             type: object
           status:
             description: StaticSiteStatus defines the observed state of StaticSite.
@@ -55,4 +66,7 @@ spec:
     served: true
     storage: true
     subresources:
+      scale:
+        specReplicasPath: .spec.replicas
+        statusReplicasPath: .status.replicas
       status: {}

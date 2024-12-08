@@ -25,11 +25,13 @@ import (
 
 // StaticSiteSpec defines the desired state of StaticSite.
 type StaticSiteSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of StaticSite. Edit staticsite_types.go to remove/update
+	// Content is content of root page, that will be displayed
 	Content string `json:"content"`
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:validation:Minimum=0
+
+	// Replicas -- number of replicas for handing requests
+	Replicas int32 `json:"replicas"`
 }
 
 // StaticSiteStatus defines the observed state of StaticSite.
@@ -40,6 +42,8 @@ type StaticSiteStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+//+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
 // +kubebuilder:resource:shortName=ss
 
 // StaticSite is the Schema for the staticsites API.

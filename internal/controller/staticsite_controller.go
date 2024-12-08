@@ -26,7 +26,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -123,7 +122,7 @@ func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha
 			Labels:    r.siteLabels(ctx, ss),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: ptr.To[int32](3),
+			Replicas: &ss.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: r.siteLabels(ctx, ss),
 			},
