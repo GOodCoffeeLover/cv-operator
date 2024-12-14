@@ -45,9 +45,24 @@ spec:
           spec:
             description: StaticSiteSpec defines the desired state of StaticSite.
             properties:
-              content:
-                description: Content is content of root page, that will be displayed
-                type: string
+              pages:
+                items:
+                  properties:
+                    content:
+                      description: Content is content of root page, that will be displayed
+                      type: string
+                    path:
+                      description: Path is path of site page
+                      type: string
+                  required:
+                  - content
+                  - path
+                  type: object
+                  x-kubernetes-map-type: granular
+                type: array
+                x-kubernetes-list-map-keys:
+                - path
+                x-kubernetes-list-type: map
               replicas:
                 description: Replicas -- number of replicas for handing requests
                 format: int32
@@ -55,7 +70,7 @@ spec:
                 minimum: 0
                 type: integer
             required:
-            - content
+            - pages
             - replicas
             type: object
           status:

@@ -37,13 +37,22 @@ type StaticSite struct {
 
 // StaticSiteSpec defines the desired state of StaticSite.
 type StaticSiteSpec struct {
-	// Content is content of root page, that will be displayed
-	Content string `json:"content"`
 	// +kubebuilder:validation:Maximum=100
 	// +kubebuilder:validation:Minimum=0
 
 	// Replicas -- number of replicas for handing requests
 	Replicas int32 `json:"replicas"`
+	// +listMapKey=path
+	// +listType=map
+	Pages []PageSpec `json:"pages"`
+}
+
+// +structType=granular
+type PageSpec struct {
+	// Path is path of site page
+	Path string `json:"path"`
+	// Content is content of root page, that will be displayed
+	Content string `json:"content"`
 }
 
 // StaticSiteStatus defines the observed state of StaticSite.

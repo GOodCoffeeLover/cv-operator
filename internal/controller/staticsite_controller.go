@@ -86,20 +86,6 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 	return ctrl.Result{}, nil
 }
 
-func (r *StaticSiteReconciler) synsStatus(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
-	deployment := r.siteDeployment(ctx, ss)
-	err := r.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
-	if client.IgnoreNotFound(err) != nil {
-		return fmt.Errorf("failed to get deployment %v/%v: %w", deployment.Namespace, deployment.Name, err)
-	}
-	ss.ManagedFields = nil
-	ss.Status.Replicas = deployment.Status.Replicas
-	// ss.Status.Conditions = append(ss.Status.Conditions, metav1.Condition{})
-	return r.Status().Patch(ctx, ss, client.Apply,
-		client.ForceOwnership, client.FieldOwner("static-site-controller"),
-	)
-}
-
 func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
 	resorces := []client.Object{
 		r.siteConfigMap(ctx, ss),
@@ -133,8 +119,22 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 	return nil
 }
 
+func (r *StaticSiteReconciler) synsStatus(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
+	deployment := r.siteDeployment(ctx, ss)
+	err := r.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+	if client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("failed to get deployment %v/%v: %w", deployment.Namespace, deployment.Name, err)
+	}
+	ss.ManagedFields = nil
+	ss.Status.Replicas = deployment.Status.Replicas
+	// ss.Status.Conditions = append(ss.Status.Conditions, metav1.Condition{})
+	return r.Status().Patch(ctx, ss, client.Apply,
+		client.ForceOwnership, client.FieldOwner("static-site-controller"),
+	)
+}
+
 func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha1.StaticSite) *appsv1.Deployment {
-	return &appsv1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ss.Name + "-dpl",
 			Namespace: ss.Namespace,
@@ -180,10 +180,10 @@ func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha
 										Name: r.siteConfigMap(ctx, ss).Name,
 									},
 									Items: []v1.KeyToPath{
-										{
-											Key:  "index",
-											Path: "index.html",
-										},
+										// {
+										// 	Key:  "index",
+										// 	Path: "index.html",
+										// },
 									},
 								},
 							},
@@ -193,6 +193,13 @@ func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha
 			},
 		},
 	}
+	for _, page := range ss.Spec.Pages {
+		deployment.Spec.Template.Spec.Volumes[0].ConfigMap.Items = append(deployment.Spec.Template.Spec.Volumes[0].ConfigMap.Items, v1.KeyToPath{
+			Key:  page.Path,
+			Path: page.Path,
+		})
+	}
+	return deployment
 }
 
 func (r *StaticSiteReconciler) siteConfigMap(ctx context.Context, ss *cvv1alpha1.StaticSite) *v1.ConfigMap {
@@ -202,9 +209,10 @@ func (r *StaticSiteReconciler) siteConfigMap(ctx context.Context, ss *cvv1alpha1
 			Namespace: ss.Namespace,
 			Labels:    r.siteLabels(ctx, ss),
 		},
-		Data: map[string]string{
-			"index": ss.Spec.Content,
-		},
+		Data: map[string]string{},
+	}
+	for _, page := range ss.Spec.Pages {
+		cm.Data[page.Path] = page.Content
 	}
 	return cm
 }
