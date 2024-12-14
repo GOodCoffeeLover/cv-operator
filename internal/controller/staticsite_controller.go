@@ -39,7 +39,7 @@ type StaticSiteReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites;deployments;configmaps;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/finalizers,verbs=update
 
@@ -68,12 +68,36 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	err := r.ensureResources(ctx, ss)
+	err := r.synsStatus(ctx, ss)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("presync status: %w", err)
+	}
+
+	err = r.ensureResources(ctx, ss)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure resources: %w", err)
+	}
+
+	err = r.synsStatus(ctx, ss)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("sync status: %w", err)
 	}
 
 	return ctrl.Result{}, nil
+}
+
+func (r *StaticSiteReconciler) synsStatus(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
+	deployment := r.siteDeployment(ctx, ss)
+	err := r.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+	if client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("failed to get deployment %v/%v: %w", deployment.Namespace, deployment.Name, err)
+	}
+	ss.ManagedFields = nil
+	ss.Status.Replicas = deployment.Status.Replicas
+	// ss.Status.Conditions = append(ss.Status.Conditions, metav1.Condition{})
+	return r.Status().Patch(ctx, ss, client.Apply,
+		client.ForceOwnership, client.FieldOwner("static-site-controller"),
+	)
 }
 
 func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
@@ -99,14 +123,9 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		// obj := res.DeepCopyObject().(client.Object)
-		// ctrl.CreateOrUpdate(ctx, r.Client, obj, func() error {
-		//	return r.Patch(
-		err = r.Patch(
-			ctx, res, client.Apply,
+		err = r.Patch(ctx, res, client.Apply,
 			client.ForceOwnership, client.FieldOwner("static-site-controller"),
 		)
-		//})
 		if err != nil {
 			return err
 		}

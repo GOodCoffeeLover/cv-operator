@@ -20,8 +20,20 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
+// +kubebuilder:object:root=true
+// +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+//+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
+// +kubebuilder:resource:shortName=ss
+
+// StaticSite is the Schema for the staticsites API.
+type StaticSite struct {
+	metav1.TypeMeta   `json:",inline"`
+	metav1.ObjectMeta `json:"metadata,omitempty"`
+
+	Spec   StaticSiteSpec   `json:"spec,omitempty"`
+	Status StaticSiteStatus `json:"status,omitempty"`
+}
 
 // StaticSiteSpec defines the desired state of StaticSite.
 type StaticSiteSpec struct {
@@ -36,23 +48,14 @@ type StaticSiteSpec struct {
 
 // StaticSiteStatus defines the observed state of StaticSite.
 type StaticSiteStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
-// +kubebuilder:object:root=true
-// +kubebuilder:subresource:status
-// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
-//+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
-// +kubebuilder:resource:shortName=ss
-
-// StaticSite is the Schema for the staticsites API.
-type StaticSite struct {
-	metav1.TypeMeta   `json:",inline"`
-	metav1.ObjectMeta `json:"metadata,omitempty"`
-
-	Spec   StaticSiteSpec   `json:"spec,omitempty"`
-	Status StaticSiteStatus `json:"status,omitempty"`
+	// +optional
+	Replicas int32 `json:"replicas"`
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 }
 
 // +kubebuilder:object:root=true

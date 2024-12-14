@@ -7,6 +7,9 @@ rules:
 - apiGroups:
   - cv.good-coffee-lover.io
   resources:
+  - configmaps
+  - deployments
+  - services
   - staticsites
   verbs:
   - create
