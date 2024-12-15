@@ -21,13 +21,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
 // +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
 // +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",priority=0
-// +kubebuilder:printcolumn:name="TotalSize",type="integer",JSONPath=".metadata.creationTimestamp",priority=0
+// +kubebuilder:printcolumn:name="TotalPagesSize",type="string",JSONPath=".status.totalPagesSize",priority=1
 // +kubebuilder:resource:shortName=ss
+// +kubebuilder:object:root=true
 
 // StaticSite is the Schema for the staticsites API.
 type StaticSite struct {
@@ -69,11 +69,11 @@ type StaticSiteStatus struct {
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
 	// +optional
-	TotalPagesSize *resource.Quantity `json:"total_pages_size"`
+	TotalPagesSize *resource.Quantity `json:"totalPagesSize"`
 	// +listMapKey=path
 	// +listType=map
 	// +optional
-	PageSizes []PageSizeStatus `json:"page_sizes"`
+	PageSizes []PageSizeStatus `json:"pageSizes"`
 }
 
 // +mapType=atomic

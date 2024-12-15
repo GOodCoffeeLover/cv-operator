@@ -23,9 +23,10 @@ spec:
     - jsonPath: .metadata.creationTimestamp
       name: Age
       type: date
-    - jsonPath: .metadata.creationTimestamp
-      name: TotalSize
-      type: integer
+    - jsonPath: .status.totalPagesSize
+      name: TotalPagesSize
+      priority: 1
+      type: string
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -141,7 +142,7 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
-              page_sizes:
+              pageSizes:
                 items:
                   properties:
                     path:
@@ -166,7 +167,7 @@ spec:
               replicas:
                 format: int32
                 type: integer
-              total_pages_size:
+              totalPagesSize:
                 anyOf:
                 - type: integer
                 - type: string
