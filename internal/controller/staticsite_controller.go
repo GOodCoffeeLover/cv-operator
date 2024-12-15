@@ -19,6 +19,7 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
 	"unsafe"
 
 	appsv1 "k8s.io/api/apps/v1"
@@ -109,7 +110,7 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 		res.GetObjectKind().SetGroupVersionKind(gvk[0])
 
 		l := log.FromContext(ctx, "object.gv", res.GetObjectKind().GroupVersionKind().GroupVersion(), "object.kind", res.GetObjectKind().GroupVersionKind().Kind, "object.name", res.GetName())
-		l.Info("creating resource")
+		l.Info("ensuring resource exists")
 		err = ctrl.SetControllerReference(ss, res, r.Scheme)
 		if err != nil {
 			return fmt.Errorf("set controller reference: %w", err)
@@ -203,9 +204,14 @@ func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha
 		},
 	}
 	for _, page := range ss.Spec.Pages {
+		path := strings.TrimPrefix(page.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		key := strings.ReplaceAll(path, "/", "_")
 		deployment.Spec.Template.Spec.Volumes[0].ConfigMap.Items = append(deployment.Spec.Template.Spec.Volumes[0].ConfigMap.Items, v1.KeyToPath{
-			Key:  page.Path,
-			Path: page.Path,
+			Key:  key,
+			Path: path,
 		})
 	}
 	return deployment
@@ -221,7 +227,12 @@ func (r *StaticSiteReconciler) siteConfigMap(ctx context.Context, ss *cvv1alpha1
 		Data: map[string]string{},
 	}
 	for _, page := range ss.Spec.Pages {
-		cm.Data[page.Path] = page.Content
+		path := strings.TrimPrefix(page.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		key := strings.ReplaceAll(path, "/", "_")
+		cm.Data[key] = page.Content
 	}
 	return cm
 }

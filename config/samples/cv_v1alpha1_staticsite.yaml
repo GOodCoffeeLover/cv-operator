@@ -6,8 +6,9 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: staticsite-sample
 spec:
+  replicas: 1
   pages:
-  - path: index.html
+  - path: "/"
     content: |
       <!DOCTYPE html>
       <html>
@@ -41,14 +42,14 @@ spec:
 
       <p>Sample text.</p>
 
-      <p><a href="/some.html">some</a></p>
+      <p><a href="/some/path.html">some</a></p>
       <p><a href="/second.html">second</a></p>
       </body>
       </html>
   - path: second.html
     content: |
       second content 
-  - path: some.html
+  - path: /some/path.html
     content: |
       some content
 
