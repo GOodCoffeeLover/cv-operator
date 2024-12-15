@@ -17,13 +17,16 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
-//+kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
+// +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",priority=0
+// +kubebuilder:printcolumn:name="TotalSize",type="integer",JSONPath=".metadata.creationTimestamp",priority=0
 // +kubebuilder:resource:shortName=ss
 
 // StaticSite is the Schema for the staticsites API.
@@ -49,9 +52,9 @@ type StaticSiteSpec struct {
 
 // +structType=granular
 type PageSpec struct {
-	// Path is path of site page
+	// Path of site page
 	Path string `json:"path"`
-	// Content is content of root page, that will be displayed
+	// Content of root page, that will be displayed
 	Content string `json:"content"`
 }
 
@@ -65,6 +68,21 @@ type StaticSiteStatus struct {
 	// +patchMergeKey=type
 	// +optional
 	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	// +optional
+	TotalPagesSize *resource.Quantity `json:"total_pages_size"`
+	// +listMapKey=path
+	// +listType=map
+	// +optional
+	PageSizes []PageSizeStatus `json:"page_sizes"`
+}
+
+// +mapType=atomic
+type PageSizeStatus struct {
+	// Path of page
+	Path string `json:"path"`
+
+	// Size of page
+	Size *resource.Quantity `json:"size"`
 }
 
 // +kubebuilder:object:root=true

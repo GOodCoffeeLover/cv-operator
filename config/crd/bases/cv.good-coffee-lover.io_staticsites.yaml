@@ -20,6 +20,12 @@ spec:
     - jsonPath: .spec.replicas
       name: Replicas
       type: integer
+    - jsonPath: .metadata.creationTimestamp
+      name: Age
+      type: date
+    - jsonPath: .metadata.creationTimestamp
+      name: TotalSize
+      type: integer
     name: v1alpha1
     schema:
       openAPIV3Schema:
@@ -49,10 +55,10 @@ spec:
                 items:
                   properties:
                     content:
-                      description: Content is content of root page, that will be displayed
+                      description: Content of root page, that will be displayed
                       type: string
                     path:
-                      description: Path is path of site page
+                      description: Path of site page
                       type: string
                   required:
                   - content
@@ -135,9 +141,37 @@ spec:
                 x-kubernetes-list-map-keys:
                 - type
                 x-kubernetes-list-type: map
+              page_sizes:
+                items:
+                  properties:
+                    path:
+                      description: Path of page
+                      type: string
+                    size:
+                      anyOf:
+                      - type: integer
+                      - type: string
+                      description: Size of page
+                      pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                      x-kubernetes-int-or-string: true
+                  required:
+                  - path
+                  - size
+                  type: object
+                  x-kubernetes-map-type: atomic
+                type: array
+                x-kubernetes-list-map-keys:
+                - path
+                x-kubernetes-list-type: map
               replicas:
                 format: int32
                 type: integer
+              total_pages_size:
+                anyOf:
+                - type: integer
+                - type: string
+                pattern: ^(\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))(([KMGTPE]i)|[numkMGTPE]|([eE](\+|-)?(([0-9]+(\.[0-9]*)?)|(\.[0-9]+))))?$
+                x-kubernetes-int-or-string: true
             type: object
         type: object
     served: true

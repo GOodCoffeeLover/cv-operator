@@ -19,10 +19,12 @@ package controller
 import (
 	"context"
 	"fmt"
+	"unsafe"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -38,6 +40,10 @@ type StaticSiteReconciler struct {
 	client.Client
 	Scheme *runtime.Scheme
 }
+
+const (
+	controllerFieldOwner = "static-site-controller"
+)
 
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites;deployments;configmaps;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/status,verbs=get;update;patch
@@ -102,7 +108,7 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 		}
 		res.GetObjectKind().SetGroupVersionKind(gvk[0])
 
-		l := log.FromContext(ctx, "object.kind", res.GetObjectKind(), "object.name", res.GetName())
+		l := log.FromContext(ctx, "object.gv", res.GetObjectKind().GroupVersionKind().GroupVersion(), "object.kind", res.GetObjectKind().GroupVersionKind().Kind, "object.name", res.GetName())
 		l.Info("creating resource")
 		err = ctrl.SetControllerReference(ss, res, r.Scheme)
 		if err != nil {
@@ -110,7 +116,7 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 		}
 
 		err = r.Patch(ctx, res, client.Apply,
-			client.ForceOwnership, client.FieldOwner("static-site-controller"),
+			client.ForceOwnership, client.FieldOwner(controllerFieldOwner),
 		)
 		if err != nil {
 			return err
@@ -127,9 +133,23 @@ func (r *StaticSiteReconciler) synsStatus(ctx context.Context, ss *cvv1alpha1.St
 	}
 	ss.ManagedFields = nil
 	ss.Status.Replicas = deployment.Status.Replicas
-	// ss.Status.Conditions = append(ss.Status.Conditions, metav1.Condition{})
+
+	ss.Status.PageSizes = []cvv1alpha1.PageSizeStatus{}
+	totalPagesSize := int64(0)
+	for _, page := range ss.Spec.Pages {
+		currentSize := int64(len(page.Content)) * int64(unsafe.Sizeof(byte(0)))
+		ss.Status.PageSizes = append(ss.Status.PageSizes, cvv1alpha1.PageSizeStatus{
+			Path: page.Path,
+			Size: resource.NewQuantity(currentSize, resource.BinarySI),
+		})
+		totalPagesSize += currentSize
+
+	}
+	ss.Status.TotalPagesSize = resource.NewQuantity(int64(totalPagesSize), resource.BinarySI)
+
+	// meta.SetStatusCondition(&ss.Status.Conditions, metav1.Condition{})
 	return r.Status().Patch(ctx, ss, client.Apply,
-		client.ForceOwnership, client.FieldOwner("static-site-controller"),
+		client.ForceOwnership, client.FieldOwner(controllerFieldOwner),
 	)
 }
 
@@ -150,45 +170,34 @@ func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha
 					Labels: r.siteLabels(ctx, ss),
 				},
 				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:            "nginx",
-							Image:           "nginx:latest",
-							ImagePullPolicy: v1.PullIfNotPresent,
-							Ports: []v1.ContainerPort{
-								{
-									Name:          "http",
-									ContainerPort: 80,
-									Protocol:      v1.ProtocolTCP,
-								},
-							},
-							VolumeMounts: []v1.VolumeMount{
-								{
-									MountPath: "/usr/share/nginx/html",
-									ReadOnly:  true,
-									Name:      "pages",
-								},
+					Containers: []v1.Container{{
+						Name:            "nginx",
+						Image:           "nginx:latest",
+						ImagePullPolicy: v1.PullIfNotPresent,
+						Ports: []v1.ContainerPort{
+							{
+								Name:          "http",
+								ContainerPort: 80,
+								Protocol:      v1.ProtocolTCP,
 							},
 						},
-					},
-					Volumes: []v1.Volume{
-						{
-							Name: "pages",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: r.siteConfigMap(ctx, ss).Name,
-									},
-									Items: []v1.KeyToPath{
-										// {
-										// 	Key:  "index",
-										// 	Path: "index.html",
-										// },
-									},
+						VolumeMounts: []v1.VolumeMount{{
+							MountPath: "/usr/share/nginx/html",
+							ReadOnly:  true,
+							Name:      "pages",
+						}},
+					}},
+					Volumes: []v1.Volume{{
+						Name: "pages",
+						VolumeSource: v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: r.siteConfigMap(ctx, ss).Name,
 								},
+								Items: []v1.KeyToPath{},
 							},
 						},
-					},
+					}},
 				},
 			},
 		},

@@ -51,3 +51,4 @@ spec:
   - path: some.html
     content: |
       some content
+
