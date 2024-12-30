@@ -6,5 +6,50 @@ metadata:
     app.kubernetes.io/managed-by: kustomize
   name: staticsite-sample
 spec:
-  content: |
-    site
+  replicas: 1
+  pages:
+  - path: ""
+    content: |
+      <!DOCTYPE html>
+      <html>
+      <head>
+      <title>Header of tab!</title>
+      <style>
+      html { color-scheme: light dark; }
+      body { 
+          width: 15em;
+          margin: 0 auto;
+          font-family: Tahoma, Verdana, Arial, sans-serif;
+      }
+      </style>
+      </head>
+
+      <body>
+
+
+      <h1>Header 1 !</h1>
+
+      <h2>Header 2 !</h2>
+      <p> Paragraf text 1</p>
+
+      <h2>Header 2 !</h2>
+      <p> Paragraf text 2</p>
+
+
+      <h1>Header 2 !</h1>
+
+      <<h1 id="header">header</h1>
+
+      <p>Sample text.</p>
+
+      <p><a href="/some/path.html">some</a></p>
+      <p><a href="/second.html">second</a></p>
+      </body>
+      </html>
+  - path: second.html
+    content: |
+      second content 
+  - path: /some/path.html
+    content: |
+      some content
+

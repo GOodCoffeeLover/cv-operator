@@ -17,30 +17,17 @@ limitations under the License.
 package v1alpha1
 
 import (
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-// EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
-// NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
-
-// StaticSiteSpec defines the desired state of StaticSite.
-type StaticSiteSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-
-	// Foo is an example field of StaticSite. Edit staticsite_types.go to remove/update
-	Content string `json:"content"`
-}
-
-// StaticSiteStatus defines the observed state of StaticSite.
-type StaticSiteStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make" to regenerate code after modifying this file
-}
-
-// +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:subresource:scale:specpath=.spec.replicas,statuspath=.status.replicas
+// +kubebuilder:printcolumn:name="Replicas",type="integer",JSONPath=".spec.replicas",priority=0
+// +kubebuilder:printcolumn:name="Age",type="date",JSONPath=".metadata.creationTimestamp",priority=0
+// +kubebuilder:printcolumn:name="TotalPagesSize",type="string",JSONPath=".status.totalPagesSize",priority=1
 // +kubebuilder:resource:shortName=ss
+// +kubebuilder:object:root=true
 
 // StaticSite is the Schema for the staticsites API.
 type StaticSite struct {
@@ -49,6 +36,53 @@ type StaticSite struct {
 
 	Spec   StaticSiteSpec   `json:"spec,omitempty"`
 	Status StaticSiteStatus `json:"status,omitempty"`
+}
+
+// StaticSiteSpec defines the desired state of StaticSite.
+type StaticSiteSpec struct {
+	// +kubebuilder:validation:Maximum=100
+	// +kubebuilder:validation:Minimum=0
+
+	// Replicas -- number of replicas for handing requests
+	Replicas int32 `json:"replicas"`
+	// +listMapKey=path
+	// +listType=map
+	Pages []PageSpec `json:"pages"`
+}
+
+// +structType=granular
+type PageSpec struct {
+	// Path of site page
+	Path string `json:"path"`
+	// Content of root page, that will be displayed
+	Content string `json:"content"`
+}
+
+// StaticSiteStatus defines the observed state of StaticSite.
+type StaticSiteStatus struct {
+	// +optional
+	Replicas int32 `json:"replicas"`
+	// +listType=map
+	// +listMapKey=type
+	// +patchStrategy=merge
+	// +patchMergeKey=type
+	// +optional
+	Conditions []metav1.Condition `json:"conditions,omitempty" patchStrategy:"merge" patchMergeKey:"type" protobuf:"bytes,1,rep,name=conditions"`
+	// +optional
+	TotalPagesSize *resource.Quantity `json:"totalPagesSize"`
+	// +listMapKey=path
+	// +listType=map
+	// +optional
+	PageSizes []PageSizeStatus `json:"pageSizes"`
+}
+
+// +mapType=atomic
+type PageSizeStatus struct {
+	// Path of page
+	Path string `json:"path"`
+
+	// Size of page
+	Size *resource.Quantity `json:"size"`
 }
 
 // +kubebuilder:object:root=true

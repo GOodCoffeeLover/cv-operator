@@ -19,14 +19,16 @@ package controller
 import (
 	"context"
 	"fmt"
+	"strings"
+	"unsafe"
 
 	appsv1 "k8s.io/api/apps/v1"
 	v1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/log"
@@ -40,7 +42,11 @@ type StaticSiteReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites,verbs=get;list;watch;create;update;patch;delete
+const (
+	controllerFieldOwner = "static-site-controller"
+)
+
+// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites;deployments;configmaps;services,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/finalizers,verbs=update
 
@@ -69,9 +75,19 @@ func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) 
 		return ctrl.Result{}, err
 	}
 
-	err := r.ensureResources(ctx, ss)
+	err := r.synsStatus(ctx, ss)
 	if err != nil {
-		return ctrl.Result{}, err
+		return ctrl.Result{}, fmt.Errorf("presync status: %w", err)
+	}
+
+	err = r.ensureResources(ctx, ss)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("ensure resources: %w", err)
+	}
+
+	err = r.synsStatus(ctx, ss)
+	if err != nil {
+		return ctrl.Result{}, fmt.Errorf("sync status: %w", err)
 	}
 
 	return ctrl.Result{}, nil
@@ -93,21 +109,16 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 		}
 		res.GetObjectKind().SetGroupVersionKind(gvk[0])
 
-		l := log.FromContext(ctx, "object.kind", res.GetObjectKind(), "object.name", res.GetName())
-		l.Info("creating resource")
+		l := log.FromContext(ctx, "object.gv", res.GetObjectKind().GroupVersionKind().GroupVersion(), "object.kind", res.GetObjectKind().GroupVersionKind().Kind, "object.name", res.GetName())
+		l.Info("ensuring resource exists")
 		err = ctrl.SetControllerReference(ss, res, r.Scheme)
 		if err != nil {
 			return fmt.Errorf("set controller reference: %w", err)
 		}
 
-		// obj := res.DeepCopyObject().(client.Object)
-		// ctrl.CreateOrUpdate(ctx, r.Client, obj, func() error {
-		//	return r.Patch(
-		err = r.Patch(
-			ctx, res, client.Apply,
-			client.ForceOwnership, client.FieldOwner("static-site-controller"),
+		err = r.Patch(ctx, res, client.Apply,
+			client.ForceOwnership, client.FieldOwner(controllerFieldOwner),
 		)
-		//})
 		if err != nil {
 			return err
 		}
@@ -115,15 +126,43 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 	return nil
 }
 
+func (r *StaticSiteReconciler) synsStatus(ctx context.Context, ss *cvv1alpha1.StaticSite) error {
+	deployment := r.siteDeployment(ctx, ss)
+	err := r.Get(ctx, client.ObjectKeyFromObject(deployment), deployment)
+	if client.IgnoreNotFound(err) != nil {
+		return fmt.Errorf("failed to get deployment %v/%v: %w", deployment.Namespace, deployment.Name, err)
+	}
+	ss.ManagedFields = nil
+	ss.Status.Replicas = deployment.Status.Replicas
+
+	ss.Status.PageSizes = []cvv1alpha1.PageSizeStatus{}
+	totalPagesSize := int64(0)
+	for _, page := range ss.Spec.Pages {
+		currentSize := int64(len(page.Content)) * int64(unsafe.Sizeof(byte(0)))
+		ss.Status.PageSizes = append(ss.Status.PageSizes, cvv1alpha1.PageSizeStatus{
+			Path: page.Path,
+			Size: resource.NewQuantity(currentSize, resource.BinarySI),
+		})
+		totalPagesSize += currentSize
+
+	}
+	ss.Status.TotalPagesSize = resource.NewQuantity(int64(totalPagesSize), resource.BinarySI)
+
+	// meta.SetStatusCondition(&ss.Status.Conditions, metav1.Condition{})
+	return r.Status().Patch(ctx, ss, client.Apply,
+		client.ForceOwnership, client.FieldOwner(controllerFieldOwner),
+	)
+}
+
 func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha1.StaticSite) *appsv1.Deployment {
-	return &appsv1.Deployment{
+	deployment := &appsv1.Deployment{
 		ObjectMeta: metav1.ObjectMeta{
 			Name:      ss.Name + "-dpl",
 			Namespace: ss.Namespace,
 			Labels:    r.siteLabels(ctx, ss),
 		},
 		Spec: appsv1.DeploymentSpec{
-			Replicas: ptr.To[int32](3),
+			Replicas: &ss.Spec.Replicas,
 			Selector: &metav1.LabelSelector{
 				MatchLabels: r.siteLabels(ctx, ss),
 			},
@@ -132,49 +171,50 @@ func (r *StaticSiteReconciler) siteDeployment(ctx context.Context, ss *cvv1alpha
 					Labels: r.siteLabels(ctx, ss),
 				},
 				Spec: v1.PodSpec{
-					Containers: []v1.Container{
-						{
-							Name:            "nginx",
-							Image:           "nginx:latest",
-							ImagePullPolicy: v1.PullIfNotPresent,
-							Ports: []v1.ContainerPort{
-								{
-									Name:          "http",
-									ContainerPort: 80,
-									Protocol:      v1.ProtocolTCP,
-								},
-							},
-							VolumeMounts: []v1.VolumeMount{
-								{
-									MountPath: "/usr/share/nginx/html",
-									ReadOnly:  true,
-									Name:      "pages",
-								},
+					Containers: []v1.Container{{
+						Name:            "nginx",
+						Image:           "nginx:latest",
+						ImagePullPolicy: v1.PullIfNotPresent,
+						Ports: []v1.ContainerPort{
+							{
+								Name:          "http",
+								ContainerPort: 80,
+								Protocol:      v1.ProtocolTCP,
 							},
 						},
-					},
-					Volumes: []v1.Volume{
-						{
-							Name: "pages",
-							VolumeSource: v1.VolumeSource{
-								ConfigMap: &v1.ConfigMapVolumeSource{
-									LocalObjectReference: v1.LocalObjectReference{
-										Name: r.siteConfigMap(ctx, ss).Name,
-									},
-									Items: []v1.KeyToPath{
-										{
-											Key:  "index",
-											Path: "index.html",
-										},
-									},
+						VolumeMounts: []v1.VolumeMount{{
+							MountPath: "/usr/share/nginx/html",
+							ReadOnly:  true,
+							Name:      "pages",
+						}},
+					}},
+					Volumes: []v1.Volume{{
+						Name: "pages",
+						VolumeSource: v1.VolumeSource{
+							ConfigMap: &v1.ConfigMapVolumeSource{
+								LocalObjectReference: v1.LocalObjectReference{
+									Name: r.siteConfigMap(ctx, ss).Name,
 								},
+								Items: []v1.KeyToPath{},
 							},
 						},
-					},
+					}},
 				},
 			},
 		},
 	}
+	for _, page := range ss.Spec.Pages {
+		path := strings.TrimPrefix(page.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		key := strings.ReplaceAll(path, "/", "_")
+		deployment.Spec.Template.Spec.Volumes[0].ConfigMap.Items = append(deployment.Spec.Template.Spec.Volumes[0].ConfigMap.Items, v1.KeyToPath{
+			Key:  key,
+			Path: path,
+		})
+	}
+	return deployment
 }
 
 func (r *StaticSiteReconciler) siteConfigMap(ctx context.Context, ss *cvv1alpha1.StaticSite) *v1.ConfigMap {
@@ -184,9 +224,15 @@ func (r *StaticSiteReconciler) siteConfigMap(ctx context.Context, ss *cvv1alpha1
 			Namespace: ss.Namespace,
 			Labels:    r.siteLabels(ctx, ss),
 		},
-		Data: map[string]string{
-			"index": ss.Spec.Content,
-		},
+		Data: map[string]string{},
+	}
+	for _, page := range ss.Spec.Pages {
+		path := strings.TrimPrefix(page.Path, "/")
+		if path == "" {
+			path = "index.html"
+		}
+		key := strings.ReplaceAll(path, "/", "_")
+		cm.Data[key] = page.Content
 	}
 	return cm
 }
