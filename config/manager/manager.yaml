@@ -63,7 +63,9 @@ spec:
         args:
           - --leader-elect
           - --health-probe-bind-address=:8081
-        image: controller:latest
+          - -zap-encoder=json
+        image: registry.deviant-optimist.home/ss-cntrl:1
+
         name: manager
         securityContext:
           allowPrivilegeEscalation: false

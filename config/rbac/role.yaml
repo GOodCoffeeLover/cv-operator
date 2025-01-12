@@ -5,11 +5,20 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
+  - apps/v1
+  resources:
+  - deployments
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
   - cv.good-coffee-lover.io
   resources:
-  - configmaps
-  - deployments
-  - services
   - staticsites
   verbs:
   - create
@@ -33,3 +42,16 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - v1
+  resources:
+  - configmaps
+  - services
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch

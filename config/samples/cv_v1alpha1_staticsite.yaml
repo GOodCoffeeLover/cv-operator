@@ -8,7 +8,7 @@ metadata:
 spec:
   replicas: 1
   pages:
-  - path: ""
+  - path: "/index.html"
     content: |
       <!DOCTYPE html>
       <html>
@@ -38,15 +38,13 @@ spec:
 
       <h1>Header 2 !</h1>
 
-      <<h1 id="header">header</h1>
-
       <p>Sample text.</p>
 
       <p><a href="/some/path.html">some</a></p>
       <p><a href="/second.html">second</a></p>
       </body>
       </html>
-  - path: second.html
+  - path: /second.html
     content: |
       second content 
   - path: /some/path.html
