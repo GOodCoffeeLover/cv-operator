@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: staticsite-sample-ingress
+spec:
+  ingressClassName: nginx
+  rules:
+  - host: static-site.deviant-optimist.home
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: staticsite-sample-svc
+            port:
+              number: 80

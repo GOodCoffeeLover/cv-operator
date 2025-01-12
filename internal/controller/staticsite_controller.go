@@ -46,19 +46,14 @@ const (
 	controllerFieldOwner = "static-site-controller"
 )
 
-// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites;deployments;configmaps;services,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=cv.good-coffee-lover.io,resources=staticsites/finalizers,verbs=update
+// +kubebuilder:rbac:groups=apps,resources=deployments,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups="",resources=services;configmaps,verbs=get;list;watch;create;update;patch;delete
 
 // Reconcile is part of the main kubernetes reconciliation loop which aims to
 // move the current state of the cluster closer to the desired state.
-// TODO(user): Modify the Reconcile function to compare the state specified by
-// the StaticSite object against the actual cluster state, and then
-// perform operations to make the cluster state reflect the state specified by
-// the user.
-//
-// For more details, check Reconcile and its Result here:
-// - https://pkg.go.dev/sigs.k8s.io/controller-runtime@v0.19.0/pkg/reconcile
 func (r *StaticSiteReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	ctx = ctrl.LoggerInto(ctx, log.FromContext(ctx, "name", req.Name, "namespace", req.Namespace))
 

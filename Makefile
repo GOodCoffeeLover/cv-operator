@@ -1,5 +1,5 @@
-# Image URL to use all building/pushing image targets
-IMG ?= controller:latest
+# Image URL to use all building/pushing imae targets
+IMG ?= registry.deviant-optimist.home/static-site-controller:$(shell git rev-parse --short HEAD)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
@@ -96,7 +96,7 @@ build: manifests generate fmt vet ## Build manager binary.
 
 .PHONY: run
 run: manifests generate fmt vet ## Run a controller from your host.
-	go run ./cmd/main.go -zap-encoder json | jq
+	go run ./cmd/main.go -zap-encoder json 2>&1 | jq
 
 # If you wish to build the manager image targeting other platforms you can use the --platform flag.
 # (i.e. docker build --platform linux/arm64). However, you must enable docker buildKit for it.
