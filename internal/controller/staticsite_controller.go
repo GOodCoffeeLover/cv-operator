@@ -100,16 +100,17 @@ func (r *StaticSiteReconciler) ensureResources(ctx context.Context, ss *cvv1alph
 		r.siteService(ctx, ss),
 	}
 	for _, res := range resorces {
-		gvk, unversioned, err := r.Scheme.ObjectKinds(res)
+		gvk, err := r.GroupVersionKindFor(res)
 		if err != nil {
 			return err
 		}
-		if unversioned || len(gvk) == 0 {
-			return fmt.Errorf("failed to get versions of %s/%s", res.GetNamespace(), res.GetName())
-		}
-		res.GetObjectKind().SetGroupVersionKind(gvk[0])
+		res.GetObjectKind().SetGroupVersionKind(gvk)
 
-		l := log.FromContext(ctx, "object.gv", res.GetObjectKind().GroupVersionKind().GroupVersion(), "object.kind", res.GetObjectKind().GroupVersionKind().Kind, "object.name", res.GetName())
+		l := log.FromContext(ctx,
+			"object.gv", res.GetObjectKind().GroupVersionKind().GroupVersion(),
+			"object.kind", res.GetObjectKind().GroupVersionKind().Kind,
+			"object.name", res.GetName(),
+		)
 		l.Info("ensuring resource exists")
 		err = ctrl.SetControllerReference(ss, res, r.Scheme)
 		if err != nil {
