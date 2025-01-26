@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: registry.deviant-optimist.home/static-site-controller
-  newTag: 40a5f4e
+  newTag: 9a03ff2
