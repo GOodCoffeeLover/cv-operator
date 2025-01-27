@@ -1,5 +1,5 @@
 # Image URL to use all building/pushing imae targets
-IMG ?= registry.deviant-optimist.home/static-site-controller:$(shell git rev-parse --short HEAD)
+IMG ?= registry.k8s.deviant-optimist.home/static-site-controller:$(shell git rev-parse --short HEAD)
 # ENVTEST_K8S_VERSION refers to the version of kubebuilder assets to be downloaded by envtest binary.
 ENVTEST_K8S_VERSION = 1.31.0
 
