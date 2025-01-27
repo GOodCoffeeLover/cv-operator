@@ -1,0 +1,4 @@
+resources:
+  - manager.yaml
+  - app-of-apps.yaml
+namePrefix: cv-operator-
